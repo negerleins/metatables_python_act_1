@@ -1,10 +1,10 @@
 import copy
 import inspect
+from typing import Callable, Any, List, Type
 
 
 class ColoService:
     def __init__(self):
-        self.data = {}
         self.colors = {
             'grey': "\x1b[38;20m",
             'yellow': "\x1b[33;20m",
@@ -16,9 +16,6 @@ class ColoService:
         return f"{self.colors[color]}{text}\x1b[0m"
 
 
-colo = ColoService()
-
-
 class DictService:
     def __init__(self):
         self.data = {}
@@ -28,6 +25,8 @@ class DictService:
                 self.data[name] = method
 
     def __getattr__(self, name):
+        colo = ColoService()
+
         if name in self.__dict__:
             return self.__dict__[name]
         else:
@@ -37,6 +36,7 @@ class DictService:
                     f"  def[{colo.rize(name, 'red')}](...?): does not exist in dictionary"
                     "\n]"
                 )  # TODO : Error handler class.
+
             return error_handler
 
     def lava1(self) -> print:
@@ -46,33 +46,71 @@ class DictService:
         print('lava2' or self)
 
 
-class SharedService:
-    def __init__(self):
-        self.metatables = {}
-        self.dict = DictService()
-
-
 class MetatableService:
     def __init__(self):
-        self.dict = DictService()
+        self.backup = {}
 
-    def create(self, shared_instance):
-        for key, value in shared_instance.dict.data.items():
-            self.dict.data[key] = copy.deepcopy(value)
+    def new(self, __class: Type[Any] = None, __dict: {Any} = None) -> Callable[[Any], None] or None:
+        colo = ColoService()
 
-    def new(self, name):
-        new_metatable = MetatableService() or self  # To satisfy static warning(s).
-        new_metatable.create(shared)
-        return new_metatable.dict
+        if not isinstance(__class, type) or not isinstance(__dict, dict):
+            print(
+                f"[{colo.rize('MetatableService:Error', 'red')}] [\n"
+                f"  {colo.rize('param: __class:List[] or array:[] is missing', 'red')}"
+                "\n]"
+            )  # TODO : Error handler class
+            return None
+
+        __data = __class()
+        __metatable = copy.deepcopy(__dict)
+
+        def __metatable_add(cls, key, value):
+            cls.data[key] = value
+
+        def __iter__(cls):
+            return iter(cls.data.items())
+
+        setattr(__data, '__iter__', __iter__.__get__(__data))
+        setattr(__data, '__metatable_add', __metatable_add.__get__(__data))
+
+        __data.__iter__ = __iter__
+        __data.__metatable_add = __metatable_add
+
+        for key, value in __metatable.items():
+            __data.__metatable_add(__data, key, value)
+
+        return __data or self.backup
 
 
 # Services
-shared = SharedService()
-shared.dict = DictService()
-metatable = MetatableService()
+metatable = MetatableService()  # Merge any array together with any class.
+functions = DictService()  # -- Work's as intended, just simple error handling.
+
+
+class testMeta:
+    def __init__(self):
+        self.data = {
+            'IamTestMetaTestData': True
+        }
+
+    def new(self):
+        for key, value in self.data.items():
+            print(key, value)
+
+
+# my weird debugging method
+Testing_MetatableService = True
+Testing_DictService = False
 
 
 if __name__ == '__main__':
-    test = metatable.new('project1')
-    test.lava2()
-    test.lava5()
+    if Testing_MetatableService and not Testing_DictService:
+        test = metatable.new(testMeta, {
+            'HasPrivileges': True,
+            'TestArray': [],
+        })
+
+        test.new()
+    elif Testing_DictService:
+        functions.lava2()
+        functions.lava7()
